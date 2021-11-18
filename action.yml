@@ -1,0 +1,43 @@
+name: 'Tailscale with Exit Node'
+description: 'Connect to Tailscale VPN and use exit node'
+inputs:
+  authkey:
+    description: 'Tailscale Ephemeral auth key'
+    required: true
+  exit_node_ip:
+    description: 'Tailscale exit node IP to use.'
+    required: true
+  version:
+    description: 'Tailscale version to use.'
+    required: true
+    default: '1.16.2'
+runs:
+    using: 'composite'
+    steps:
+      - name: Download Tailscale
+        shell: bash
+        id: download
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          MINOR=$(echo "$VERSION" | awk -F '.' {'print $2'})
+          if [ $((MINOR % 2)) -eq 0 ]; then
+            URL="https://pkgs.tailscale.com/stable/tailscale_${VERSION}_amd64.tgz"
+          else
+            URL="https://pkgs.tailscale.com/unstable/tailscale_${VERSION}_amd64.tgz"
+          fi
+          curl "$URL" -o tailscale.tgz
+          tar -C /tmp -xzf tailscale.tgz
+          rm tailscale.tgz
+          TSPATH=/tmp/tailscale_${VERSION}_amd64
+          sudo mv "${TSPATH}/tailscale" "${TSPATH}/tailscaled" /usr/bin
+      - name: Run Tailscale
+        shell: bash
+        env:
+          TAILSCALE_AUTHKEY: ${{ inputs.authkey }}
+          TAILSCALE_EXIT_NODE_IP: ${{ inputs.exit_node_ip }}
+        run: |
+          sudo tailscaled 2>~/tailscaled.log &
+          HOSTNAME="github-$(cat /etc/hostname)"
+          sudo tailscale up --authkey ${TAILSCALE_AUTHKEY} --hostname=${HOSTNAME} --exit-node "${TAILSCALE_EXIT_NODE_IP}" --accept-dns --accept-routes
+          sleep 5

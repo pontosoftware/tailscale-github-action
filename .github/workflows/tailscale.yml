@@ -1,0 +1,27 @@
+name: tailscale
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+      - name: Tailscale Action
+        uses: ./
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          exit_node_ip: ${{ secrets.TAILSCALE_EXIT_NODE_IP }}
+      - name: Print Tailscale Status
+        run:
+          tailscale status
+      - name: Check Internet access
+        run:
+          curl -fsSL https://ipinfo.io
